@@ -1,0 +1,22 @@
+BAN MOI: Seller minimum + Bidder flexible step
+
+1. Seller nhap "Buoc gia toi thieu" o muc quan ly san pham.
+2. Bidder dat gia THU CONG: nhap gia tuy y >= gia hien tai + muc toi thieu.
+3. Bidder Auto-Bid: nhap Gia toi da + Buoc gia Auto-Bid (>= Seller minimum).
+4. Neu gia tran sat den, buoc Auto-Bid cuoi co the nho hon buoc mong muon
+   nhung khong duoc nho hon muc toi thieu cua Seller.
+5. Chuyen file patch vao dung THU MUC GOC CO pom.xml; khong tao thu muc con trung ten.
+6. Tat server/client cu, backup data/state.json, ghi de file, build lai:
+      .\mvnw.cmd clean verify
+      .\run-server.bat
+      .\run-client.bat    (terminal moi)
+7. Neu may con dung client/JAR cu, thoa tac se khong thay doi.
+8. Ban patch nay ap dung tren Online-Auction-System-2026-Seller-Bid-Step-CORRECTED.
+   Neu khong chac project hien tai o phien ban nao, dung ban FULL.zip roi
+   copy data/state.json tu du an cu sang dung vi tri.
+
+KIEM TRA KET QUA:
+- dashboard.fxml co fx:id="incrementField" (Bidder) va
+  fx:id="minimumIncrementField" (Seller).
+- Server AutoBid record co truong increment va AuctionService co
+  registerAuto(User,String,long,long).

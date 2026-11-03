@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.auction</groupId><artifactId>online-auction-parent</artifactId><version>1.0.0</version><packaging>pom</packaging>
+  <modules><module>auction-common</module><module>auction-core</module><module>auction-server</module><module>auction-client</module></modules>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <gson.version>2.11.0</gson.version><junit.version>5.11.4</junit.version><javafx.version>21.0.5</javafx.version>
+    <jacoco.version>0.8.12</jacoco.version>
+  </properties>
+  <dependencyManagement><dependencies>
+    <dependency><groupId>com.auction</groupId><artifactId>auction-common</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.auction</groupId><artifactId>auction-core</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.google.code.gson</groupId><artifactId>gson</artifactId><version>${gson.version}</version></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version></dependency>
+  </dependencies></dependencyManagement>
+  <build><pluginManagement><plugins>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.13.0</version></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.2</version><configuration><useModulePath>false</useModulePath></configuration></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-shade-plugin</artifactId><version>3.6.0</version></plugin>
+    <plugin><groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId><version>${jacoco.version}</version></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-checkstyle-plugin</artifactId><version>3.5.0</version></plugin>
+  </plugins></pluginManagement><plugins>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-checkstyle-plugin</artifactId><configuration><configLocation>${maven.multiModuleProjectDirectory}/checkstyle.xml</configLocation><includeTestSourceDirectory>true</includeTestSourceDirectory><failOnViolation>true</failOnViolation></configuration><executions><execution><id>validate-style</id><phase>verify</phase><goals><goal>check</goal></goals></execution></executions></plugin>
+  </plugins></build>
+</project>

@@ -1,0 +1,53 @@
+/* UI layout inspired by both provided visual samples; original styling. */
+.root { -fx-font-family: "Segoe UI", "Arial", sans-serif; -fx-font-size: 13px; }
+.auth-root { -fx-background-color: #f0f3f9; }
+.auth-top { -fx-padding: 18 30 2 20; }
+.auth-footer { -fx-padding: 11; }
+.endpoint { -fx-text-fill: #65758b; -fx-font-size: 11px; -fx-font-weight: bold; }
+.live-dot { -fx-text-fill: #8495a9; }
+.chart-live { -fx-text-fill: #18b988; -fx-font-weight: bold; }
+.auth-card { -fx-background-color: white; -fx-background-radius: 18; -fx-effect: dropshadow(gaussian,rgba(22,36,58,.13),28,.12,0,8); }
+.auth-form { -fx-padding: 40 40 35 40; }
+.logo-dark { -fx-text-fill: #15335b; -fx-font-size: 21px; -fx-font-weight: 900; }
+.auth-title { -fx-text-fill: #182c48; -fx-font-size: 26px; -fx-font-weight: bold; }
+.field-label { -fx-text-fill: #495f7e; -fx-font-weight: bold; -fx-font-size: 10px; }
+.muted,.hint { -fx-text-fill: #7d8ba1; -fx-font-size: 12px; }
+.hint { -fx-font-size: 10px; }
+.auth-input { -fx-pref-height: 40; -fx-background-color: #f7f9fd; -fx-background-radius: 8; -fx-border-color: #e2e9f3; -fx-border-radius: 8; }
+.auth-hero { -fx-background-color: linear-gradient(to bottom right,#142e50,#245b8e); -fx-background-radius: 0 18 18 0; -fx-padding: 45; }
+.hero-eyebrow { -fx-text-fill: #80e0c0; -fx-font-size: 11px; -fx-font-weight: bold; }
+.hero-title { -fx-text-fill: white; -fx-font-size: 31px; -fx-font-weight: bold; }
+.hero-feature { -fx-text-fill: #eff5ff; -fx-font-size: 14px; }
+.hero-footer { -fx-text-fill: #abc2dd; -fx-font-size: 11px; }
+.button { -fx-cursor: hand; -fx-padding: 9 13; -fx-background-radius: 7; -fx-font-weight: bold; }
+.primary-btn { -fx-background-color: #2f6fe5; -fx-text-fill: white; }
+.primary-btn:hover { -fx-background-color: #1f57c1; }
+.outline-btn { -fx-background-color: white; -fx-border-color: #cbd7eb; -fx-border-radius: 7; -fx-text-fill: #26517e; }
+.outline-btn:hover { -fx-background-color: #e9f0fe; }
+.danger-btn { -fx-background-color: #fff1f1; -fx-text-fill: #b83f50; }
+.error-label { -fx-text-fill: #ce3651; -fx-font-size: 12px; }
+.app-root { -fx-background-color: #f4f7fc; }
+.sidebar { -fx-background-color: #102a47; -fx-padding: 30 16; }
+.sidebar-brand { -fx-text-fill: white; -fx-font-size: 25px; -fx-font-weight: 900; -fx-padding: 0 0 25 10; }
+.sidebar-caption { -fx-text-fill: #7f9ab6; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 12 10 3 10; }
+.side-label { -fx-text-fill: #c8d8e9; -fx-padding: 10; }
+.side-active { -fx-background-color: #275785; -fx-text-fill: white; -fx-alignment: CENTER_LEFT; -fx-padding: 12; }
+.workspace { -fx-padding: 14 16 14 16; }
+.workspace-header { -fx-padding: 7 3 13 3; }
+.page-title { -fx-font-size: 23px; -fx-font-weight: bold; -fx-text-fill: #1b3451; }
+.section-title { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1f3e62; }
+.account-tag { -fx-background-color: #e4edfa; -fx-text-fill: #255b8d; -fx-padding: 9 14; -fx-background-radius: 18; -fx-font-weight: bold; }
+.feedback { -fx-text-fill: #278575; -fx-font-size: 11px; }
+.main-split { -fx-background-color: transparent; -fx-padding: 0; }
+.main-split > .split-pane-divider { -fx-background-color: transparent; -fx-padding: 5; }
+.content-card { -fx-padding: 15; -fx-background-color: white; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-color: #e4ebf3; }
+.live-badge { -fx-text-fill: #129d7c; -fx-background-color: #e7fbf4; -fx-background-radius: 11; -fx-padding: 4 8; -fx-font-size: 10px; -fx-font-weight: bold; }
+.search-field,.detail-box { -fx-background-color: #f7f9fd; -fx-border-color: #e5ebf5; -fx-border-radius: 7; }
+.auction-table { -fx-background-color: transparent; -fx-border-color: #e8eef7; -fx-border-radius: 8; }
+.auction-table .column-header-background { -fx-background-color: #f0f5fd; }
+.auction-table .table-row-cell:selected { -fx-background-color: #dceafe; }
+.auction-table .table-row-cell:selected .text { -fx-fill: #204c7a; }
+.seller-panel { -fx-padding: 13; -fx-background-color: #eaf0fa; -fx-background-radius: 12; }
+.chart-plot-background { -fx-background-color: #fbfdff; }
+.chart-series-line { -fx-stroke: #246bde; -fx-stroke-width: 2.5; }
+.chart-line-symbol { -fx-background-color: #246bde, white; }

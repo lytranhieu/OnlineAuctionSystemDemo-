@@ -1,0 +1,29 @@
+name: Java Build and Tests
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify all modules
+        run: ./mvnw --batch-mode clean verify
+      - name: Upload unit test and JaCoCo results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-and-coverage
+          path: |
+            **/target/surefire-reports/**
+            **/target/site/jacoco/**
+            auction-server/target/*-all.jar
+            auction-client/target/*-all.jar
+          if-no-files-found: ignore

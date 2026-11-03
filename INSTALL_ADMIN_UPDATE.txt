@@ -1,0 +1,10 @@
+ADMIN + AUCTION VALIDATION PATCH / ONLINE AUCTION SYSTEM
+
+1. Patch nay danh cho ban Maven 4-module da co auction-common, auction-core, auction-server, auction-client (ban day du Flexible Bidder Step).
+2. Tat server/client; sao luu data/state.json va Git working tree.
+3. Mo thu muc du an goc chua pom.xml. Copy noi dung ZIP vao DUNG thu muc nay, dong y ghi de. Khong copy nguyen folder ben ngoai.
+4. Build lai: .\mvnw.cmd clean verify, sau do .\run-server.bat / .\run-client.bat.
+5. Tao admin: dat bien AUCTION_ADMIN_PASSWORD trong terminal server truoc lan chay server dau tien.
+6. Xem docs/ADMIN_AND_AUCTION_VALIDATION.md de xem phan quyen va test.
+
+Khong sao che data/state.json trong patch. Neu project dang dung la ban code co ban chi cua tuan 6, dung ZIP full thay vi patch.

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.chart.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.auction.client.controller.DashboardController" styleClass="app-root">
+  <left><VBox prefWidth="202" spacing="15" styleClass="sidebar">
+    <Label text="AUCTIVA" styleClass="sidebar-brand"/>
+    <Label text="DASHBOARD" styleClass="sidebar-caption"/>
+    <Button text="⌂   Phiên đấu giá" onAction="#refresh" maxWidth="Infinity" styleClass="side-active"/>
+    <Label text="DANH MỤC" styleClass="sidebar-caption"/>
+    <Label text="◈  Electronics" styleClass="side-label"/>
+    <Label text="◈  Art &amp; Collectibles" styleClass="side-label"/>
+    <Label text="◈  Vehicles" styleClass="side-label"/>
+    <Region VBox.vgrow="ALWAYS"/>
+    <Label text="JAVA • UET 2026" styleClass="sidebar-caption"/>
+  </VBox></left>
+  <center><BorderPane styleClass="workspace">
+    <top><VBox spacing="8" styleClass="workspace-header">
+      <HBox alignment="CENTER_LEFT" spacing="14">
+        <VBox spacing="3"><Label text="Thị trường đấu giá" styleClass="page-title"/><Label text="Theo dõi giá, cạnh tranh trực tiếp và xem lịch sử." styleClass="muted"/></VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="accountLabel" styleClass="account-tag"/>
+        <Button text="↻  Làm mới" onAction="#refresh" styleClass="outline-btn"/>
+      </HBox>
+      <Label fx:id="feedbackLabel" wrapText="true" styleClass="feedback"/>
+    </VBox></top>
+    <center><SplitPane fx:id="mainSplit" styleClass="main-split">
+      <items>
+        <VBox spacing="12" styleClass="content-card">
+          <HBox alignment="CENTER_LEFT" spacing="10"><Label text="Phiên đấu giá" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Label text="LIVE" styleClass="live-badge"/></HBox>
+          <TextField fx:id="searchField" promptText="⌕   Tìm theo tên hoặc danh mục..." onKeyReleased="#filterAuctions" styleClass="search-field"/>
+          <TableView fx:id="auctionTable" VBox.vgrow="ALWAYS" styleClass="auction-table">
+            <placeholder><Label text="Chưa có phiên đấu giá"/></placeholder>
+            <columns><TableColumn fx:id="nameCol" text="SẢN PHẨM" prefWidth="180"/><TableColumn fx:id="priceCol" text="GIÁ (VND)" prefWidth="115"/><TableColumn fx:id="statusCol" text="TRẠNG THÁI" prefWidth="108"/><TableColumn fx:id="endCol" text="HẾT HẠN" prefWidth="138"/></columns>
+          </TableView>
+          <Label text="Chọn một phiên để xem chi tiết và đặt giá." styleClass="muted"/>
+        </VBox>
+        <VBox spacing="12" styleClass="content-card">
+          <Label text="Chi tiết &amp; đặt giá trực tiếp" styleClass="section-title"/>
+          <TextArea fx:id="detailArea" editable="false" wrapText="true" prefRowCount="9" styleClass="detail-box"/>
+          <Label fx:id="bidRuleLabel" text="Bước giá tối thiểu: chọn một phiên đấu giá" styleClass="muted" wrapText="true"/>
+          <HBox spacing="8" alignment="CENTER_LEFT"><TextField fx:id="bidField" promptText="Giá đặt (VND)" HBox.hgrow="ALWAYS"/><Button fx:id="bidButton" text="Đặt giá" onAction="#bid" styleClass="primary-btn"/><Button fx:id="cancelButton" text="Hủy phiên" onAction="#cancel" styleClass="danger-btn"/><Button fx:id="payButton" text="Đã thanh toán" onAction="#pay" styleClass="outline-btn"/></HBox>
+          <HBox spacing="8" alignment="CENTER_LEFT"><TextField fx:id="maxBidField" promptText="Giá tối đa" HBox.hgrow="ALWAYS"/><TextField fx:id="incrementField" promptText="Bước giá Auto-Bid" prefWidth="145"/><Button fx:id="autoButton" text="Bật Auto-Bid" onAction="#autoBid" styleClass="outline-btn"/></HBox>
+          <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Đường giá realtime" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Label text="● LIVE" styleClass="chart-live"/></HBox>
+          <LineChart fx:id="historyChart" VBox.vgrow="ALWAYS" animated="false" legendVisible="false" createSymbols="true"><xAxis><CategoryAxis label="Thời điểm đặt giá"/></xAxis><yAxis><NumberAxis label="Giá (VND)" forceZeroInRange="false"/></yAxis></LineChart>
+        </VBox>
+      </items>
+    </SplitPane></center>
+    <bottom><VBox spacing="8">
+      <VBox fx:id="sellerBox" spacing="9" styleClass="seller-panel">
+      <Label text="QUẢN LÝ SẢN PHẨM  /  SELLER" styleClass="section-title"/>
+      <HBox alignment="CENTER_LEFT" spacing="8"><TextField fx:id="nameField" promptText="Tên sản phẩm" prefWidth="225"/><ComboBox fx:id="categoryChoice" prefWidth="150"/><TextField fx:id="priceField" promptText="Giá khởi điểm" prefWidth="125"/><TextField fx:id="delayField" promptText="Bắt đầu sau (phút)" prefWidth="133"/><TextField fx:id="durationField" promptText="Thời lượng (phút)" prefWidth="133"/></HBox>
+      <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Bước giá tối thiểu (VND):" styleClass="muted"/><TextField fx:id="minimumIncrementField" promptText="VD: 100000" prefWidth="150"/><Label text="Bidder được đặt giá cao hơn mức tối thiểu" styleClass="muted"/></HBox>
+      <HBox alignment="CENTER_LEFT" spacing="9"><TextArea fx:id="descriptionArea" promptText="Mô tả sản phẩm" prefRowCount="2" wrapText="true" HBox.hgrow="ALWAYS"/><Button text="Tạo phiên" onAction="#create" styleClass="primary-btn"/><Button text="Sửa" onAction="#edit" styleClass="outline-btn"/><Button text="Xóa" onAction="#delete" styleClass="danger-btn"/></HBox>
+      </VBox>
+      <VBox fx:id="adminBox" spacing="7" styleClass="seller-panel" visible="false" managed="false">
+        <HBox spacing="12" alignment="CENTER_LEFT">
+          <Label text="QUẢN TRỊ HỆ THỐNG  /  ADMIN" styleClass="section-title"/>
+          <Label fx:id="adminSummaryLabel" text="Đang tải tài khoản..." styleClass="muted"/>
+          <Region HBox.hgrow="ALWAYS"/>
+          <Button text="Làm mới tài khoản" onAction="#refreshUsers" styleClass="outline-btn"/>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT">
+          <TableView fx:id="usersTable" prefHeight="138" minHeight="90" HBox.hgrow="ALWAYS" styleClass="auction-table">
+            <placeholder><Label text="Không có tài khoản"/></placeholder>
+            <columns>
+              <TableColumn fx:id="userNameCol" text="TÀI KHOẢN" prefWidth="225"/>
+              <TableColumn fx:id="userRoleCol" text="VAI TRÒ" prefWidth="125"/>
+              <TableColumn fx:id="userStatusCol" text="TRẠNG THÁI" prefWidth="185"/>
+            </columns>
+          </TableView>
+          <VBox spacing="8" alignment="CENTER_LEFT">
+            <Button text="Khóa tài khoản" onAction="#suspendUser" styleClass="danger-btn" maxWidth="Infinity"/>
+            <Button text="Mở khóa tài khoản" onAction="#restoreUser" styleClass="outline-btn" maxWidth="Infinity"/>
+            <Label text="Chọn phiên ở phía trên để Hủy hoặc xác nhận Đã thanh toán." wrapText="true" maxWidth="255" styleClass="muted"/>
+          </VBox>
+        </HBox>
+        <Label text="Tài khoản bị khóa không thể đăng nhập hoặc đặt giá mới; lịch sử giá cũ được giữ nguyên." styleClass="muted"/>
+      </VBox>
+    </VBox></bottom>
+  </BorderPane></center>
+</BorderPane>
