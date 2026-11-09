@@ -1,5 +1,6 @@
 package com.auction.client.controller;
 
+import com.auction.client.DesktopApp;
 import com.auction.client.AuctionClient;
 import com.auction.dto.AuctionView;
 import com.auction.dto.UserSummary;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /** View controller: delegates all state changes to the remote service. */
@@ -35,6 +37,8 @@ public final class DashboardController {
     private AuctionClient client;
     private String username;
     private String role;
+    private boolean loggingOut;
+    @FXML private Button logoutButton;
 
     @FXML private Label accountLabel, feedbackLabel;
     @FXML private TableView<AuctionView> auctionTable;
@@ -48,7 +52,11 @@ public final class DashboardController {
     @FXML private VBox sellerBox, adminBox;
     @FXML private TableView<UserSummary> usersTable;
     @FXML private TableColumn<UserSummary, String> userNameCol, userRoleCol, userStatusCol;
-    @FXML private Label adminSummaryLabel;
+    @FXML private Label adminSummaryLabel, pendingSummaryLabel;
+    @FXML private TableView<AuctionView> pendingTable;
+    @FXML private TableColumn<AuctionView, String> pendingNameCol, pendingSellerCol, pendingTimeCol;
+    @FXML private TextField rejectionReasonField;
+    @FXML private Button approveButton, rejectButton;
     @FXML private SplitPane mainSplit;
     @FXML private Button bidButton, autoButton, payButton, cancelButton;
     @FXML private javafx.scene.chart.LineChart<String, Number> historyChart;
@@ -62,6 +70,17 @@ public final class DashboardController {
         priceCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(money(c.getValue().currentPrice())));
         statusCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().status().name()));
         endCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(TIME.format(Instant.ofEpochMilli(c.getValue().endsAt()))));
+        pendingNameCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().name()));
+        pendingSellerCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().seller()));
+        pendingTimeCol.setCellValueFactory(c -> new ReadOnlyStringWrapper(
+                TIME.format(Instant.ofEpochMilli(c.getValue().endsAt()))));
+        pendingTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (selected != null) {
+                selectById(selected.id());
+                showDetail(selected);
+            }
+            updateReviewButtons();
+        });
         categoryChoice.setItems(FXCollections.observableArrayList(Category.values()));
         categoryChoice.setValue(Category.ELECTRONICS);
         durationField.setText("10");
@@ -86,6 +105,7 @@ public final class DashboardController {
         boolean admin = "ADMIN".equals(role);
         adminBox.setVisible(admin);
         adminBox.setManaged(admin);
+        updateReviewButtons();
         bidButton.setDisable(!"BIDDER".equals(role));
         autoButton.setDisable(!"BIDDER".equals(role));
         payButton.setVisible("ADMIN".equals(role));
@@ -98,15 +118,61 @@ public final class DashboardController {
         cancelButton.setDisable(true);
         // Socket push, not timer polling: patch the current UI from the received event.
         client.onEvent(packet -> Platform.runLater(() -> applyEvent(packet)));
+        client.onDisconnect(error -> Platform.runLater(() -> {
+            if (loggingOut || this.client != client) return;
+            loggingOut = true;
+            this.client = null;
+            // Login retains the last selected host/port; the user can reconnect.
+            Alert notice = new Alert(Alert.AlertType.WARNING,
+                    "Mất kết nối đến Server: " + error.getMessage()
+                    + "\nKiểm tra IP/port hoặc mạng Wi-Fi, rồi đăng nhập lại.",
+                    ButtonType.OK);
+            notice.setHeaderText("Kết nối tới Server đã bị ngắt");
+            try { DesktopApp.showLogin(); }
+            catch (Exception e) { System.err.println("Cannot reopen Login: " + e); }
+            notice.show();
+        }));
         refresh();
     }
 
+    /** Revoke the server session, disconnect the socket and return to Login. */
+    @FXML private void logout() {
+        if (loggingOut || client == null) return;
+        loggingOut = true;
+        logoutButton.setDisable(true);
+        feedbackLabel.setText("Đang đăng xuất...");
+        AuctionClient previousConnection = client;
+        // Stop push notifications while the logout request is in flight.
+        previousConnection.onEvent(packet -> { });
+        previousConnection.request("LOGOUT", new JsonObject())
+                .orTimeout(3, TimeUnit.SECONDS)
+                .whenComplete((response, error) -> Platform.runLater(() -> {
+                    // Closing the socket ends the server-side session even if the server
+                    // is offline or an old version does not understand LOGOUT.
+                    try { previousConnection.close(); }
+                    catch (java.io.IOException ignored) { }
+                    client = null;
+                    username = null;
+                    role = null;
+                    try {
+                        DesktopApp.showLogin();
+                    } catch (Exception loadError) {
+                        loadError.printStackTrace(System.err);
+                        feedbackLabel.setText("Không mở được màn hình đăng nhập: "
+                                + loadError.getMessage());
+                        loggingOut = false;
+                        logoutButton.setDisable(false);
+                    }
+                }));
+    }
+
     @FXML private void refresh() {
-        if (client == null) return;
+        if (client == null || loggingOut) return;
         call("LIST", new JsonObject(), response -> {
             String selection = selectedId();
             List<AuctionView> list = gson.fromJson(response.data, listType);
             allAuctions.setAll(list);
+            refreshPendingQueue();
             filterAuctions();
             selectById(selection);
             if (auctionTable.getSelectionModel().getSelectedItem() == null) clearSelection();
@@ -126,6 +192,53 @@ public final class DashboardController {
                     .ifPresent(u -> usersTable.getSelectionModel().select(u));
             long suspended = users.stream().filter(UserSummary::suspended).count();
             adminSummaryLabel.setText("Tài khoản: " + users.size() + " • Đã khóa: " + suspended);
+        });
+    }
+
+    private void refreshPendingQueue() {
+        if (!"ADMIN".equals(role)) return;
+        String oldId = pendingTable.getSelectionModel().getSelectedItem() == null
+                ? null : pendingTable.getSelectionModel().getSelectedItem().id();
+        var pending = allAuctions.stream().filter(a -> a.status() == Status.PENDING).toList();
+        pendingTable.setItems(FXCollections.observableArrayList(pending));
+        if (oldId != null) pendingTable.getItems().stream()
+                .filter(a -> a.id().equals(oldId)).findFirst()
+                .ifPresent(a -> pendingTable.getSelectionModel().select(a));
+        pendingSummaryLabel.setText("Đang chờ duyệt: " + pending.size());
+        updateReviewButtons();
+    }
+
+    private void updateReviewButtons() {
+        if (approveButton == null || rejectButton == null) return;
+        AuctionView selected = pendingTable.getSelectionModel().getSelectedItem();
+        boolean canReview = "ADMIN".equals(role) && selected != null
+                && selected.status() == Status.PENDING;
+        approveButton.setDisable(!canReview);
+        rejectButton.setDisable(!canReview);
+    }
+
+    @FXML private void approveAuction() { reviewAuction("APPROVE"); }
+    @FXML private void rejectAuction() { reviewAuction("REJECT"); }
+
+    private void reviewAuction(String command) {
+        AuctionView selected = pendingTable.getSelectionModel().getSelectedItem();
+        if (selected == null) { showError("Chọn một phiên trong danh sách chờ duyệt"); return; }
+        JsonObject data = new JsonObject();
+        data.addProperty("id", selected.id());
+        if ("REJECT".equals(command)) {
+            String reason = rejectionReasonField.getText().trim();
+            if (reason.isBlank() || reason.length() > 500) {
+                showError("Cần nhập lý do từ chối (1–500 ký tự)");
+                return;
+            }
+            data.addProperty("reason", reason);
+        }
+        call(command, data, response -> {
+            feedbackLabel.setText("APPROVE".equals(command)
+                    ? "Đã duyệt phiên " + selected.id()
+                    : "Đã từ chối phiên " + selected.id());
+            rejectionReasonField.clear();
+            refresh();
         });
     }
 
@@ -162,6 +275,7 @@ public final class DashboardController {
 
     /** Apply server-authoritative snapshots; no repetitive LIST polling. */
     private void applyEvent(Packet packet) {
+        if (loggingOut || client == null) return;
         try {
             if (packet.data == null || !packet.data.isJsonObject()) return;
             JsonObject data = packet.data.getAsJsonObject();
@@ -169,6 +283,7 @@ public final class DashboardController {
                 String id = data.get("removedId").getAsString();
                 boolean wasSelected = id.equals(selectedId());
                 allAuctions.removeIf(a -> a.id().equals(id));
+                refreshPendingQueue();
                 filterAuctions();
                 if (wasSelected) clearSelection();
                 return;
@@ -182,6 +297,7 @@ public final class DashboardController {
             }
             if (index < 0) allAuctions.add(updated);
             else allAuctions.set(index, updated);
+            refreshPendingQueue();
             filterAuctions();
             selectById(previouslySelected);
             if (updated.id().equals(previouslySelected)) showDetail(updated);
@@ -221,6 +337,11 @@ public final class DashboardController {
                 + "\nCurrent: " + money(view.currentPrice()) + " VND"
                 + "\nSeller minimum increment: " + money(view.minimumIncrement()) + " VND"
                 + "\nĐang dẫn đầu: " + (view.highestBidder() == null ? "Chưa có" : view.highestBidder())
+                + "\nDuyệt phiên: " + (view.status() == Status.PENDING ? "Đang chờ Admin duyệt"
+                        : view.status() == Status.REJECTED ? "Bị từ chối" : "Đã qua bước xét duyệt")
+                + (view.reviewNote() == null || view.reviewNote().isBlank() ? ""
+                        : "\nLý do từ chối: " + view.reviewNote())
+                + (view.reviewedBy() == null ? "" : "\nAdmin xét duyệt: " + view.reviewedBy())
                 + "\nKết quả: " + resultText(view)
                 + "\nStatus: " + view.status()
                 + "\nStarts: " + TIME.format(Instant.ofEpochMilli(view.startsAt()))
@@ -254,6 +375,8 @@ public final class DashboardController {
     }
 
     private static String resultText(AuctionView view) {
+        if (view.status() == Status.PENDING) return "Chưa được duyệt, chưa thể đấu giá";
+        if (view.status() == Status.REJECTED) return "Từ chối — Seller có thể chỉnh sửa và gửi lại";
         if (view.status() == Status.CANCELED) return "Phiên bị hủy, không có người thắng";
         if (view.status() == Status.FINISHED || view.status() == Status.PAID)
             return view.winner() == null ? "Kết thúc không có người thắng"
@@ -270,6 +393,7 @@ public final class DashboardController {
         cancelButton.setDisable(!(owner || admin) || view.status() == Status.PAID
                 || view.status() == Status.CANCELED);
         payButton.setDisable(!admin || view.status() != Status.FINISHED || view.winner() == null);
+        updateReviewButtons();
     }
 
     @FXML private void bid() {
@@ -331,7 +455,12 @@ public final class DashboardController {
             data.addProperty("minimumIncrement", minimumIncrement);
             data.addProperty("startsAt", start);
             data.addProperty("endsAt", end);
-            call(type, data, p -> { feedbackLabel.setText("Saved successfully"); refresh(); });
+            call(type, data, p -> {
+                feedbackLabel.setText("CREATE".equals(type)
+                        ? "Đã gửi phiên cho Admin duyệt; Bidder chưa thể tham gia"
+                        : "Đã gửi thông tin cập nhật để Admin duyệt lại");
+                refresh();
+            });
         } catch (Exception e) { showError("Invalid product values: " + e.getMessage()); }
     }
 
@@ -347,7 +476,9 @@ public final class DashboardController {
     }
 
     private void call(String type, JsonObject data, Consumer<Packet> success) {
+        if (client == null || loggingOut) return;
         client.request(type, data).whenComplete((packet, exception) -> Platform.runLater(() -> {
+            if (loggingOut || client == null) return;
             if (exception != null) showError(exception.getMessage());
             else if (!packet.success) showError(packet.error);
             else success.accept(packet);

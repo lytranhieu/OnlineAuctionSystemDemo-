@@ -20,6 +20,9 @@ public final class Auction extends Entity {
     private long endsAt;
     private Status status;
     private String highestBidder;
+    private String reviewNote;
+    private String reviewedBy;
+    private long reviewedAt;
     private final List<BidTransaction> history;
     private final List<AutoBid> autoBids;
 
@@ -37,7 +40,7 @@ public final class Auction extends Entity {
         this.currentPrice = price;
         this.startsAt = startsAt;
         this.endsAt = endsAt;
-        this.status = Status.OPEN;
+        this.status = Status.PENDING;
         this.history = new ArrayList<>();
         this.autoBids = new ArrayList<>();
     }
@@ -51,6 +54,9 @@ public final class Auction extends Entity {
         auction.currentPrice = data.currentPrice();
         auction.status = data.status();
         auction.highestBidder = data.highestBidder();
+        auction.reviewNote = data.reviewNote();
+        auction.reviewedBy = data.reviewedBy();
+        auction.reviewedAt = data.reviewedAt();
         if (data.history() != null) auction.history.addAll(data.history());
         if (data.autoBids() != null) {
             // Legacy snapshots (before optional bidder steps) deserialize increment as zero.
@@ -68,7 +74,7 @@ public final class Auction extends Entity {
             return new State.AuctionData(getId(), item.getName(), item.getDescription(),
                     item.getCategory(), seller, startingPrice, currentPrice, startsAt, endsAt,
                     status, highestBidder, List.copyOf(history), List.copyOf(autoBids),
-                    minimumIncrement);
+                    minimumIncrement, reviewNote, reviewedBy, reviewedAt);
         } finally { lock.unlock(); }
     }
 
@@ -76,7 +82,8 @@ public final class Auction extends Entity {
         State.AuctionData a = snapshot();
         return new AuctionView(a.id(), a.name(), a.description(), a.category(), a.seller(),
                 a.startingPrice(), a.currentPrice(), a.startsAt(), a.endsAt(),
-                a.status(), a.highestBidder(), a.history(), a.minimumIncrement());
+                a.status(), a.highestBidder(), a.history(), a.minimumIncrement(),
+                a.reviewNote(), a.reviewedBy(), a.reviewedAt());
     }
 
     public boolean advance(long now) {
@@ -141,8 +148,10 @@ public final class Auction extends Entity {
     public void edit(Item item, long price, long start, long end, long minimumIncrement) {
         lock.lock();
         try {
-            if (status != Status.OPEN || !history.isEmpty())
-                throw new IllegalStateException("Only upcoming auctions without bids can be edited");
+            if ((status != Status.OPEN && status != Status.PENDING && status != Status.REJECTED)
+                    || !history.isEmpty())
+                throw new IllegalStateException("Only upcoming/rejected auctions without bids can be edited");
+            if (end <= start) throw new IllegalArgumentException("End must be after start");
             if (minimumIncrement < 1 || price < 1 || minimumIncrement > Long.MAX_VALUE - price)
                 throw new IllegalArgumentException("Invalid minimum bid increment");
             this.item = item;
@@ -151,6 +160,42 @@ public final class Auction extends Entity {
             this.currentPrice = price;
             this.startsAt = start;
             this.endsAt = end;
+            // Any edit invalidates a previous approval: Admin must review the new details.
+            this.status = Status.PENDING;
+            this.reviewNote = null;
+            this.reviewedBy = null;
+            this.reviewedAt = 0L;
+        } finally { lock.unlock(); }
+    }
+
+    /** Only an authorized admin can invoke this through AuctionService. */
+    public void approve(String admin, long now) {
+        lock.lock();
+        try {
+            if (status != Status.PENDING)
+                throw new IllegalStateException("Only pending auctions can be approved");
+            if (now >= endsAt)
+                throw new IllegalStateException("Auction end time has passed; seller must edit and resubmit");
+            status = Status.OPEN;
+            reviewNote = null;
+            reviewedBy = admin;
+            reviewedAt = now;
+            advance(now);  // If the seller's start time already passed, start immediately.
+        } finally { lock.unlock(); }
+    }
+
+    /** Keep the rejected submission visible to its seller for correction. */
+    public void reject(String admin, String reason, long now) {
+        lock.lock();
+        try {
+            if (status != Status.PENDING)
+                throw new IllegalStateException("Only pending auctions can be rejected");
+            if (reason == null || reason.isBlank() || reason.length() > 500)
+                throw new IllegalArgumentException("Reason is required (1-500 characters)");
+            status = Status.REJECTED;
+            reviewNote = reason.strip();
+            reviewedBy = admin;
+            reviewedAt = now;
         } finally { lock.unlock(); }
     }
 

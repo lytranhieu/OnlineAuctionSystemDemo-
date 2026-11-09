@@ -22,6 +22,7 @@
         <Region HBox.hgrow="ALWAYS"/>
         <Label fx:id="accountLabel" styleClass="account-tag"/>
         <Button text="↻  Làm mới" onAction="#refresh" styleClass="outline-btn"/>
+        <Button fx:id="logoutButton" text="Đăng xuất" onAction="#logout" styleClass="logout-btn"/>
       </HBox>
       <Label fx:id="feedbackLabel" wrapText="true" styleClass="feedback"/>
     </VBox></top>
@@ -52,9 +53,29 @@
       <Label text="QUẢN LÝ SẢN PHẨM  /  SELLER" styleClass="section-title"/>
       <HBox alignment="CENTER_LEFT" spacing="8"><TextField fx:id="nameField" promptText="Tên sản phẩm" prefWidth="225"/><ComboBox fx:id="categoryChoice" prefWidth="150"/><TextField fx:id="priceField" promptText="Giá khởi điểm" prefWidth="125"/><TextField fx:id="delayField" promptText="Bắt đầu sau (phút)" prefWidth="133"/><TextField fx:id="durationField" promptText="Thời lượng (phút)" prefWidth="133"/></HBox>
       <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Bước giá tối thiểu (VND):" styleClass="muted"/><TextField fx:id="minimumIncrementField" promptText="VD: 100000" prefWidth="150"/><Label text="Bidder được đặt giá cao hơn mức tối thiểu" styleClass="muted"/></HBox>
-      <HBox alignment="CENTER_LEFT" spacing="9"><TextArea fx:id="descriptionArea" promptText="Mô tả sản phẩm" prefRowCount="2" wrapText="true" HBox.hgrow="ALWAYS"/><Button text="Tạo phiên" onAction="#create" styleClass="primary-btn"/><Button text="Sửa" onAction="#edit" styleClass="outline-btn"/><Button text="Xóa" onAction="#delete" styleClass="danger-btn"/></HBox>
+      <HBox alignment="CENTER_LEFT" spacing="9"><TextArea fx:id="descriptionArea" promptText="Mô tả sản phẩm" prefRowCount="2" wrapText="true" HBox.hgrow="ALWAYS"/><Button text="Gửi duyệt" onAction="#create" styleClass="primary-btn"/><Button text="Sửa" onAction="#edit" styleClass="outline-btn"/><Button text="Xóa" onAction="#delete" styleClass="danger-btn"/></HBox>
       </VBox>
       <VBox fx:id="adminBox" spacing="7" styleClass="seller-panel" visible="false" managed="false">
+        <HBox spacing="10" alignment="CENTER_LEFT">
+          <Label text="PHIÊN ĐẤU GIÁ CHỜ DUYỆT" styleClass="section-title"/>
+          <Label fx:id="pendingSummaryLabel" text="Đang chờ duyệt: 0" styleClass="muted"/>
+        </HBox>
+        <HBox spacing="10" alignment="CENTER_LEFT">
+          <TableView fx:id="pendingTable" prefHeight="146" minHeight="90" HBox.hgrow="ALWAYS" styleClass="auction-table">
+            <placeholder><Label text="Không có phiên đang chờ duyệt"/></placeholder>
+            <columns>
+              <TableColumn fx:id="pendingNameCol" text="SẢN PHẨM" prefWidth="180"/>
+              <TableColumn fx:id="pendingSellerCol" text="SELLER" prefWidth="135"/>
+              <TableColumn fx:id="pendingTimeCol" text="HẾT HẠN" prefWidth="145"/>
+            </columns>
+          </TableView>
+          <VBox spacing="7" alignment="CENTER_LEFT">
+            <Button fx:id="approveButton" text="Duyệt phiên" onAction="#approveAuction" styleClass="primary-btn" maxWidth="Infinity"/>
+            <TextField fx:id="rejectionReasonField" promptText="Lý do từ chối (bắt buộc)" prefWidth="220"/>
+            <Button fx:id="rejectButton" text="Từ chối phiên" onAction="#rejectAuction" styleClass="danger-btn" maxWidth="Infinity"/>
+          </VBox>
+        </HBox>
+        <Label text="Chỉ phiên được duyệt mới xuất hiện với Bidder; Seller sửa phiên đã duyệt sẽ phải chờ xét duyệt lại." styleClass="muted" wrapText="true"/>
         <HBox spacing="12" alignment="CENTER_LEFT">
           <Label text="QUẢN TRỊ HỆ THỐNG  /  ADMIN" styleClass="section-title"/>
           <Label fx:id="adminSummaryLabel" text="Đang tải tài khoản..." styleClass="muted"/>

@@ -4,8 +4,9 @@
 <?import javafx.geometry.Insets?>
 <BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.auction.client.controller.LoginController" styleClass="auth-root">
   <top><HBox alignment="CENTER_RIGHT" styleClass="auth-top" spacing="8">
-    <Label text="●" styleClass="live-dot"/>
-    <Label fx:id="endpointLabel" styleClass="endpoint"/>
+    <Label text="Tự động tìm Server cùng Wi-Fi" styleClass="field-label"/>
+    <Label fx:id="endpointLabel" text="Đang tìm Server..." styleClass="endpoint"/>
+    <Button fx:id="retryDiscoveryButton" text="Tìm lại" onAction="#discoverServer" styleClass="outline-btn"/>
   </HBox></top>
   <center><HBox alignment="CENTER" spacing="0" maxWidth="850" maxHeight="470" BorderPane.alignment="CENTER" styleClass="auth-card">
     <VBox prefWidth="440" alignment="CENTER_LEFT" spacing="15" styleClass="auth-form">

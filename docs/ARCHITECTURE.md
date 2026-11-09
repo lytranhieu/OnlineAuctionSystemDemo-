@@ -12,6 +12,14 @@ auction-client ---> auction-common <--- auction-server ---> auction-core ---> au
 - **Core**: `AuctionService`, `AutoBidEngine`, singleton `AuctionManager`, `EventBus`, `StateRepository` và `FileStateRepository`.
 - **Server**: TCP `AuctionServer`, `ClientHandler`, `ClientHub`; mỗi session giữ danh tính `User` sau LOGIN; không tin role do client tự khai ở các yêu cầu nghiệp vụ.
 
+## Luồng Admin xét duyệt
+
+1. Seller tạo phiên `PENDING`; Server kiểm tra đầu vào, ghi `State.AuctionData` và thông báo realtime **chỉ** đến Admin và Seller sở hữu.
+2. Admin nhìn thấy hàng đợi duyệt trong Dashboard và quyết định `APPROVE` hoặc `REJECT` (có lý do bắt buộc).
+3. Duyệt chuyển sang `OPEN`, hoặc `RUNNING` nếu đến giờ và thời hạn còn hiệu lực. Từ lúc này Bidder mới nhìn thấy phiên.
+4. Từ chối chuyển sang `REJECTED`, chỉ Admin và Seller nhìn thấy ghi chú; Seller sửa để gửi xét duyệt lại.
+5. `ClientHandler` lọc `LIST`/`DETAIL` theo người dùng; `ClientHub` chỉ phát bản cập nhật riêng tư cho đúng Admin/Seller. Khi một phiên công khai quay về PENDING, Client đã biết phiên nhận sự kiện xóa khỏi danh sách.
+
 ## Luồng một giao dịch bid
 
 1. User đăng nhập, Server cấp session gắn vào một kết nối TCP đang mở.
@@ -25,7 +33,7 @@ auction-client ---> auction-common <--- auction-server ---> auction-core ---> au
 ## Các invariant quan trọng
 
 - Mọi bid hợp lệ phải có `amount >= currentPrice + minimumIncrement` (bước giá Seller thiết lập, tránh overflow) và phiên ở `RUNNING`.
-- Chỉ `BIDDER` đặt giá; `SELLER` chỉ sửa/xoá những phiên OPEN chưa có bid; `ADMIN` mark-paid.
+- Mỗi phiên mới là `PENDING`; chỉ Admin được `APPROVE`/`REJECT`. Bidder không được thấy hoặc tham gia `PENDING`/`REJECTED`. Seller chỉ sửa/xoá phiên chưa chạy và chưa có bid; sửa phiên đã duyệt thì **trở lại PENDING** để xét duyệt lại. Chỉ `BIDDER` đặt giá ở `RUNNING`; `ADMIN` xác nhận thanh toán sau khi kết thúc.
 - Auction kết thúc theo đồng hồ Server, xử lý cả sau khi khởi động lại, duy nhất một `highestBidder`.
 - `AutoBidEngine` dùng priority ordering `(maxBid DESC, createdAt ASC)` và không vượt ceiling; mỗi Auto-Bid có bước tăng mong muốn `increment >= Auction.minimumIncrement` do Bidder chọn; ở giá trần bước thực tế có thể nhỏ hơn bước mong muốn nhưng vẫn phải ≥ mức Seller yêu cầu. Đặt giá thủ công được tăng tùy ý, miễn không thấp hơn mức tối thiểu.
 - Anti-sniping: khi bid được chấp nhận với thời gian còn `<=30s`, dời deadline thêm `60s`.

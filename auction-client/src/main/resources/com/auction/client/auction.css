@@ -25,6 +25,8 @@
 .outline-btn { -fx-background-color: white; -fx-border-color: #cbd7eb; -fx-border-radius: 7; -fx-text-fill: #26517e; }
 .outline-btn:hover { -fx-background-color: #e9f0fe; }
 .danger-btn { -fx-background-color: #fff1f1; -fx-text-fill: #b83f50; }
+.logout-btn { -fx-background-color: #fff1f1; -fx-border-color: #f0c6ca; -fx-border-radius: 7; -fx-text-fill: #a62e42; }
+.logout-btn:hover { -fx-background-color: #ffe3e7; }
 .error-label { -fx-text-fill: #ce3651; -fx-font-size: 12px; }
 .app-root { -fx-background-color: #f4f7fc; }
 .sidebar { -fx-background-color: #102a47; -fx-padding: 30 16; }

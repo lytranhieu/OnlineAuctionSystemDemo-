@@ -49,12 +49,51 @@ class DashboardFxmlContractTest {
         }
     }
 
+    @Test void administratorCanApproveOrRejectSubmittedAuctions() throws Exception {
+        try (InputStream resource = getClass().getResourceAsStream("/com/auction/client/dashboard.fxml")) {
+            assertNotNull(resource);
+            var document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(resource);
+            boolean queue = false, reason = false, approve = false, reject = false;
+            var tables = document.getElementsByTagName("TableView");
+            for (int i = 0; i < tables.getLength(); i++)
+                queue |= "pendingTable".equals(((Element) tables.item(i)).getAttribute("fx:id"));
+            var fields = document.getElementsByTagName("TextField");
+            for (int i = 0; i < fields.getLength(); i++)
+                reason |= "rejectionReasonField".equals(((Element) fields.item(i)).getAttribute("fx:id"));
+            var buttons = document.getElementsByTagName("Button");
+            for (int i = 0; i < buttons.getLength(); i++) {
+                String action = ((Element) buttons.item(i)).getAttribute("onAction");
+                approve |= "#approveAuction".equals(action);
+                reject |= "#rejectAuction".equals(action);
+            }
+            assertTrue(queue && reason && approve && reject);
+        }
+    }
+
+    @Test void dashboardExposesLogoutButtonForAllRoles() throws Exception {
+        try (InputStream resource = getClass().getResourceAsStream("/com/auction/client/dashboard.fxml")) {
+            assertNotNull(resource);
+            var document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(resource);
+            boolean found = false;
+            var buttons = document.getElementsByTagName("Button");
+            for (int i = 0; i < buttons.getLength(); i++) {
+                Element button = (Element) buttons.item(i);
+                if ("logoutButton".equals(button.getAttribute("fx:id"))) {
+                    assertEquals("#logout", button.getAttribute("onAction"));
+                    assertEquals("Đăng xuất", button.getAttribute("text"));
+                    found = true;
+                }
+            }
+            assertTrue(found, "Every signed-in role must see a logout button");
+        }
+    }
+
     @Test void tablePlaceholderIsAJavaFxNodeNotAnAttributeString() throws Exception {
         try (InputStream resource = getClass().getResourceAsStream("/com/auction/client/dashboard.fxml")) {
             assertNotNull(resource, "Dashboard FXML must be on classpath");
             var document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(resource);
             NodeList tables = document.getElementsByTagName("TableView");
-            assertEquals(2, tables.getLength(), "Both auction and admin user tables must exist");
+            assertEquals(3, tables.getLength(), "Auctions, admin approval queue and user management tables must exist");
             for (int i = 0; i < tables.getLength(); i++) {
                 Element table = (Element) tables.item(i);
                 assertFalse(table.hasAttribute("placeholder"),

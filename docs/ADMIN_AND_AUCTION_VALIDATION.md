@@ -23,6 +23,8 @@ Tài liệu này áp dụng cho dự án Maven đa module `online-auction-system
 | `USERS` | Admin | Trả danh sách `UserSummary` đã sắp xếp |
 | `SUSPEND_USER` | Admin | Data `{ "username": "alice" }`, không khóa Admin |
 | `RESTORE_USER` | Admin | Data `{ "username": "alice" }` |
+| `APPROVE` | Admin | Chỉ `PENDING`, end chưa quá hạn; cho phép RUNNING khi đến giờ |
+| `REJECT` | Admin | Chỉ `PENDING`, bắt buộc truyền `reason` 1–500 ký tự |
 | `CANCEL` | Admin hoặc Seller sở hữu | Phiên chưa PAID/CANCELED |
 | `PAY` | Admin | Chỉ FINISHED có người thắng |
 
@@ -35,6 +37,11 @@ Dữ liệu khóa được lưu tại `State.suspendedUsers`; khi đọc JSON c�
 | Tình huống | Kết quả yêu cầu |
 |---|---|
 | Tạo phiên tên trống, giá <= 0, bước tối thiểu <= 0, end <= start hoặc end ở quá khứ | Từ chối |
+| Tạo mới hợp lệ | `PENDING`, chưa hiển thị cho Bidder |
+| `PENDING` / `REJECTED`, bid/Auto-Bid hoặc xem `DETAIL` bằng Bidder | Từ chối |
+| Admin duyệt PENDING, còn thời gian | `OPEN` hoặc `RUNNING` tùy thời điểm |
+| Admin từ chối kèm lý do | `REJECTED`, Seller thấy lý do, sửa để gửi duyệt lại |
+| Seller sửa OPEN khi chưa chạy | Quay về PENDING; phải duyệt lại |
 | `OPEN`, bid trước `startsAt` | Từ chối |
 | `RUNNING`, giá mới < giá hiện tại + minimumIncrement | Từ chối |
 | `RUNNING`, Bidder trả giá cao hơn mức tối thiểu | Chấp nhận; cập nhật leader, giá và lịch sử |
@@ -58,6 +65,6 @@ Chạy tại thư mục có `pom.xml`:
 mvnw.cmd clean verify
 ```
 
-Những lớp có kiểm thử: `AuctionServiceTest`, `SocketRealtimeIntegrationTest`, `DashboardFxmlContractTest`. Các ca mới kiểm tra không đặt giá trước/sau phiên, người thắng/không có người thắng, hủy phiên, phân quyền Admin, khóa/mở tài khoản và duy trì trạng thái khóa sau khi phục hồi dữ liệu.
+Những lớp có kiểm thử: `AuctionServiceTest`, `AuctionApprovalTest`, `SocketRealtimeIntegrationTest`, `DashboardFxmlContractTest`. Các ca mới kiểm tra không đặt giá trước/sau phiên, người thắng/không có người thắng, hủy phiên, phân quyền Admin, khóa/mở tài khoản và duy trì trạng thái khóa sau khi phục hồi dữ liệu.
 
 **Môi trường xây dựng nguồn:** JDK 21 đã biên dịch các module bằng thư viện giả lập API Gson và JavaFX từ JAR tham khảo để kiểm tra cú pháp; bài chạy thử nghiệp vụ trên Server với `StateRepository` trong bộ nhớ đã thành công. Do không có Maven/dependency online, đây **không phải** xác nhận `mvn verify` hoặc chạy JavaFX thật; nhóm phải chạy lại trên Windows trước khi nộp.

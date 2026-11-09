@@ -18,7 +18,7 @@ class AuctionServiceTest {
     private EventBus events;
     private AuctionService service;
     private MutableClock clock;
-    private User seller, alice, bob;
+    private User seller, alice, bob, admin;
 
     @BeforeEach void setUp() throws Exception {
         clock = new MutableClock(1_800_000_000_000L);
@@ -27,13 +27,23 @@ class AuctionServiceTest {
         seller = service.register("seller", "secret123", Role.SELLER);
         alice = service.register("alice", "secret123", Role.BIDDER);
         bob = service.register("bob", "secret123", Role.BIDDER);
+        service.bootstrapAdmin("secretAdmin123");
+        admin = service.login("admin", "secretAdmin123");
     }
 
     @AfterEach void tearDown() { events.close(); }
 
     private String auction(long endOffset) {
-        return service.create(seller, "Laptop", "16GB RAM", Category.ELECTRONICS,
+        return createApproved(seller, "Laptop", "16GB RAM", Category.ELECTRONICS,
                 100, clock.millis() - 60_000, clock.millis() + endOffset, 1).id();
+    }
+
+    private AuctionView createApproved(User owner, String name, String description, Category category,
+            long price, long startsAt, long endsAt, long increment) {
+        AuctionView pending = service.create(owner, name, description, category, price,
+                startsAt, endsAt, increment);
+        assertEquals(Status.PENDING, pending.status());
+        return service.approve(admin, pending.id());
     }
 
     @Test void validatesBidAndPermissions() {
@@ -108,10 +118,11 @@ class AuctionServiceTest {
     }
 
     @Test void sellerCanEditUpcomingAndAdminCanMarkPaid() {
-        String id = service.create(seller, "Art", "Painting", Category.ART,
+        String id = createApproved(seller, "Art", "Painting", Category.ART,
                 100, clock.millis() + 60_000, clock.millis() + 600_000, 1).id();
         service.edit(seller, id, "Art 2", "New", Category.ART, 200,
                 clock.millis() + 50_000, clock.millis() + 700_000, 1);
+        service.approve(admin, id);
         assertEquals("Art 2", service.get(id).name());
         assertThrows(SecurityException.class, () -> service.edit(alice, id, "X", "Y",
                 Category.ART, 1, clock.millis() + 1, clock.millis() + 5, 1));
@@ -121,14 +132,14 @@ class AuctionServiceTest {
         clock.forward(700_001);
         service.advanceAll();
         service.bootstrapAdmin("admin-secret-123");
-        User admin = service.login("admin", "admin-secret-123");
+        User admin = service.login("admin", "secretAdmin123");
         service.pay(admin, id);
         assertEquals(Status.PAID, service.get(id).status());
     }
 
 
     @Test void auctionCannotAcceptBidsBeforeStartOrAfterFinish() {
-        String id = service.create(seller, "Camera", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Camera", "test", Category.ELECTRONICS,
                 1_000, clock.millis() + 60_000, clock.millis() + 120_000, 100).id();
         assertEquals(Status.OPEN, service.get(id).status());
         assertNull(service.get(id).winner());
@@ -271,7 +282,7 @@ class AuctionServiceTest {
     }
 
     @Test void sellerSetsMinimumIncrementForManualBids() {
-        String id = service.create(seller, "Camera", "Mirrorless", Category.ELECTRONICS,
+        String id = createApproved(seller, "Camera", "Mirrorless", Category.ELECTRONICS,
                 1_000_000, clock.millis() - 1_000, clock.millis() + 600_000, 100_000).id();
         assertEquals(100_000, service.get(id).minimumIncrement());
         assertThrows(IllegalArgumentException.class, () -> service.bid(alice, id, 1_050_000));
@@ -282,7 +293,7 @@ class AuctionServiceTest {
     }
 
     @Test void bidderMayRaiseMoreThanSellersMinimum() {
-        String id = service.create(seller, "Tablet", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Tablet", "test", Category.ELECTRONICS,
                 1_000_000, clock.millis() - 1_000, clock.millis() + 600_000, 100_000).id();
         service.bid(alice, id, 1_500_000); // manual step = 500k (seller minimum = 100k)
         assertEquals(1_500_000, service.get(id).currentPrice());
@@ -292,7 +303,7 @@ class AuctionServiceTest {
     }
 
     @Test void bidderChosenAutoStepCannotBeBelowSellerMinimum() {
-        String id = service.create(seller, "Phone", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Phone", "test", Category.ELECTRONICS,
                 1_000, clock.millis() - 1_000, clock.millis() + 600_000, 100).id();
         assertThrows(IllegalArgumentException.class, () -> service.registerAuto(alice, id, 2_000, 50));
         assertThrows(IllegalArgumentException.class, () -> service.registerAuto(alice, id, 1_200, 300));
@@ -301,7 +312,7 @@ class AuctionServiceTest {
     }
 
     @Test void differentAutoStepsRespectCeilingsAndPriority() {
-        String id = service.create(seller, "Laptop", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Laptop", "test", Category.ELECTRONICS,
                 1_000, clock.millis() - 1_000, clock.millis() + 600_000, 100).id();
         service.registerAuto(alice, id, 2_000, 300);
         assertEquals(1_300, service.get(id).currentPrice());
@@ -312,7 +323,7 @@ class AuctionServiceTest {
     }
 
     @Test void equalCeilingEarlierAutoBidWinsEvenNearPreferredStepLimit() {
-        String id = service.create(seller, "Camera", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Camera", "test", Category.ELECTRONICS,
                 1_000, clock.millis() - 1_000, clock.millis() + 600_000, 100).id();
         service.registerAuto(alice, id, 2_000, 600);
         service.registerAuto(bob, id, 2_000, 100);
@@ -321,7 +332,7 @@ class AuctionServiceTest {
     }
 
     @Test void chosenAutoStepPersistsAcrossRestart() throws Exception {
-        String id = service.create(seller, "Monitor", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Monitor", "test", Category.ELECTRONICS,
                 1_000, clock.millis() - 1_000, clock.millis() + 600_000, 100).id();
         service.registerAuto(alice, id, 3_000, 400);
         AuctionService restored = new AuctionService(
@@ -343,7 +354,7 @@ class AuctionServiceTest {
     }
 
     @Test void sellerIncrementAppliesToAllAutoBidsAndTies() {
-        String id = service.create(seller, "Laptop", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Laptop", "test", Category.ELECTRONICS,
                 79_000_000, clock.millis() - 1_000, clock.millis() + 600_000, 100_000).id();
         assertThrows(IllegalArgumentException.class,
                 () -> service.registerAuto(alice, id, 79_099_999));
@@ -355,7 +366,7 @@ class AuctionServiceTest {
     }
 
     @Test void higherAutoBidRespectsSellerIncrement() {
-        String id = service.create(seller, "Phone", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Phone", "test", Category.ELECTRONICS,
                 1000, clock.millis() - 1_000, clock.millis() + 600_000, 100).id();
         service.registerAuto(alice, id, 1500);
         service.registerAuto(bob, id, 1900);
@@ -364,10 +375,11 @@ class AuctionServiceTest {
     }
 
     @Test void incrementEditableOnlyBeforeStartAndPersists() throws Exception {
-        String id = service.create(seller, "Painting", "test", Category.ART,
+        String id = createApproved(seller, "Painting", "test", Category.ART,
                 100, clock.millis() + 60_000, clock.millis() + 600_000, 10).id();
         service.edit(seller, id, "Painting", "test", Category.ART, 200,
                 clock.millis() + 60_000, clock.millis() + 600_000, 50);
+        service.approve(admin, id);
         assertEquals(50, service.get(id).minimumIncrement());
         AuctionService restored = new AuctionService(
                 new FileStateRepository(folder.resolve("state.json")), new EventBus(), clock);
@@ -377,7 +389,7 @@ class AuctionServiceTest {
         assertThrows(IllegalStateException.class, () -> service.edit(seller, id,
                 "Painting", "test", Category.ART, 200,
                 clock.millis() + 60_000, clock.millis() + 600_000, 100));
-        assertThrows(SecurityException.class, () -> service.create(alice,
+        assertThrows(SecurityException.class, () -> createApproved(alice,
                 "X", "Test", Category.ART, 100, clock.millis(), clock.millis() + 100_000, 10));
     }
 
@@ -391,7 +403,7 @@ class AuctionServiceTest {
     }
 
     @Test void concurrentBidsRespectSellerIncrement() throws Exception {
-        String id = service.create(seller, "Laptop", "test", Category.ELECTRONICS,
+        String id = createApproved(seller, "Laptop", "test", Category.ELECTRONICS,
                 100, clock.millis() - 1_000, clock.millis() + 600_000, 10).id();
         ExecutorService pool = Executors.newFixedThreadPool(2);
         CountDownLatch latch = new CountDownLatch(1);

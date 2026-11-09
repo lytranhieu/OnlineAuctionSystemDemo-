@@ -36,15 +36,20 @@ class SocketRealtimeIntegrationTest {
             AuctionService service = new AuctionService(memory, bus, Clock.systemUTC());
             ClientHub hub = new ClientHub();
             bus.subscribe(hub::broadcast);
+            service.bootstrapAdmin("strongAdminPassword");
             Thread listener = Thread.ofVirtual().start(() -> {
                 try {
-                    for (int i = 0; i < 2; i++) {
+                    for (int i = 0; i < 3; i++) {
                         Socket socket = server.accept();
                         Thread.ofVirtual().start(new ClientHandler(socket, service, hub));
                     }
                 } catch (IOException ignored) { }
             });
-            try (Peer seller = new Peer(server.getLocalPort()); Peer bidder = new Peer(server.getLocalPort())) {
+            try (Peer seller = new Peer(server.getLocalPort());
+                 Peer bidder = new Peer(server.getLocalPort());
+                 Peer admin = new Peer(server.getLocalPort())) {
+                assertTrue(admin.request("LOGIN", Map.of("username", "admin",
+                        "password", "strongAdminPassword")).get("success").getAsBoolean());
                 assertTrue(seller.request("REGISTER", Map.of("username", "seller", "password", "secure123", "role", "SELLER")).get("success").getAsBoolean());
                 assertTrue(seller.request("LOGIN", Map.of("username", "seller", "password", "secure123")).get("success").getAsBoolean());
                 assertTrue(bidder.request("REGISTER", Map.of("username", "bidder", "password", "secure123", "role", "BIDDER")).get("success").getAsBoolean());
@@ -56,6 +61,15 @@ class SocketRealtimeIntegrationTest {
                         "minimumIncrement", 10L));
                 assertTrue(created.get("success").getAsBoolean());
                 String id = created.getAsJsonObject("data").get("id").getAsString();
+                // Seller sees submission; bidder cannot see it until admin approves.
+                assertEquals("PENDING", created.getAsJsonObject("data").get("status").getAsString());
+                assertEquals(100, seller.nextPriceEvent(id));
+                JsonObject hidden = bidder.request("LIST", Map.of());
+                assertEquals(0, hidden.getAsJsonArray("data").size());
+                assertFalse(bidder.request("BID", Map.of("id", id, "amount", 135L))
+                        .get("success").getAsBoolean());
+                assertFalse(bidder.request("APPROVE", Map.of("id", id)).get("success").getAsBoolean());
+                assertTrue(admin.request("APPROVE", Map.of("id", id)).get("success").getAsBoolean());
                 assertEquals(100, bidder.nextPriceEvent(id));
                 assertEquals(100, seller.nextPriceEvent(id));
                 JsonObject receipt = bidder.request("BID", Map.of("id", id, "amount", 135L));
@@ -98,6 +112,37 @@ class SocketRealtimeIntegrationTest {
                         .get("success").getAsBoolean());
                 assertFalse(bidder.request("LIST", Map.of()).get("success").getAsBoolean());
                 assertTrue(admin.request("RESTORE_USER", Map.of("username", "alice"))
+                        .get("success").getAsBoolean());
+                assertTrue(bidder.request("LIST", Map.of()).get("success").getAsBoolean());
+            }
+            listener.join(1000);
+        }
+    }
+
+    @Test void logoutRevokesPermissionsUntilNextLoginOnSameSocket() throws Exception {
+        StateRepository memory = new StateRepository() {
+            State data = new State();
+            @Override public State load() { return data; }
+            @Override public void save(State next) { data = next; }
+        };
+        try (EventBus bus = new EventBus();
+             ServerSocket server = new ServerSocket(0, 10, InetAddress.getLoopbackAddress())) {
+            AuctionService service = new AuctionService(memory, bus, Clock.systemUTC());
+            ClientHub hub = new ClientHub();
+            Thread listener = Thread.ofVirtual().start(() -> {
+                try { new ClientHandler(server.accept(), service, hub).run(); }
+                catch (IOException ignored) { }
+            });
+            try (Peer bidder = new Peer(server.getLocalPort())) {
+                assertTrue(bidder.request("REGISTER", Map.of("username", "alice", "password", "secure123",
+                        "role", "BIDDER")).get("success").getAsBoolean());
+                assertTrue(bidder.request("LOGIN", Map.of("username", "alice", "password", "secure123"))
+                        .get("success").getAsBoolean());
+                assertTrue(bidder.request("LIST", Map.of()).get("success").getAsBoolean());
+                assertTrue(bidder.request("LOGOUT", Map.of()).get("success").getAsBoolean());
+                assertFalse(bidder.request("LIST", Map.of()).get("success").getAsBoolean(),
+                        "A logged-out connection must not access auctions");
+                assertTrue(bidder.request("LOGIN", Map.of("username", "alice", "password", "secure123"))
                         .get("success").getAsBoolean());
                 assertTrue(bidder.request("LIST", Map.of()).get("success").getAsBoolean());
             }

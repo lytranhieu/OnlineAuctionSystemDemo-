@@ -27,7 +27,17 @@ public final class DesktopApp extends Application {
     public static String serverHost() { return host; }
     public static int serverPort() { return port; }
 
+    /** Save the selected endpoint for reconnects within this application session. */
+    public static void configureServer(String serverHost, int serverPort) {
+        if (serverHost == null || serverHost.isBlank() || serverPort < 1 || serverPort > 65535)
+            throw new IllegalArgumentException("Invalid server host or port");
+        host = serverHost;
+        port = serverPort;
+    }
+
     public static void showLogin() throws Exception {
+        // Do not retain the close handler (and socket) of a previous account.
+        window.setOnCloseRequest(null);
         FXMLLoader loader = new FXMLLoader(DesktopApp.class.getResource("/com/auction/client/login.fxml"));
         Scene scene = new Scene(loader.load(), 920, 570);
         scene.getStylesheets().add(DesktopApp.class.getResource("/com/auction/client/auction.css").toExternalForm());

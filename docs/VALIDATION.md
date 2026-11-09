@@ -35,3 +35,10 @@ Trạng thái kiểm tra trong môi trường tạo dự án:
 - Thêm 6 bài JUnit trong `AuctionServiceTest` (Seller rule, 2 auto bids, tie-breaking, sửa/lưu, legacy, concurrent).
 - **Đã chạy offline:** biên dịch backend Java với Gson stub, chạy smoke test dùng in-memory StateRepository (bid hợp lệ/không hợp lệ, auto tie, auto ceiling lớn hơn, Seller edit, snapshot, legacy và 40 user concurrent), tất cả đạt. Source JUnit core compile với API stub; FXML/POM parse XML và liên kết fx:id/action thành công.
 - **Chưa chạy:** Maven thực, JavaFX desktop và TCP Gson thực trong môi trường hiện tại. Trên Windows cần chạy `mvnw.cmd clean verify` trước demo.
+
+## Bổ sung duyệt phiên Admin — 03/11/2026
+
+- Có thêm `PENDING/REJECTED`, API `APPROVE/REJECT` có kiểm tra quyền Server, lý do từ chối và người duyệt trong snapshot, bảng Admin chờ duyệt và lọc sự kiện/danh sách riêng tư.
+- Đã **biên dịch source backend và source test** bằng JDK 21 với thư viện compile-time giả lập Gson/JUnit; **biên dịch DashboardController với compile-time stubs JavaFX**; parse XML/POM và kiểm tra 41 `fx:id`, 13 callback.
+- Đã chạy smoke test logic thật (service + in-memory repository): chặn phiên chưa duyệt, ẩn khỏi Bidder/other Seller, duyệt, từ chối, sửa/gửi lại, chặn phiên đã quá hạn, dữ liệu cũ và quy tắc Bidder.
+- **Chưa chạy Maven/JUnit với thư viện thật và JavaFX/Socket runtime thật** trong môi trường này. Cần chạy `mvnw.cmd clean verify` + kiểm tra Seller/Admin/Bidder trên máy nhóm trước khi nộp.

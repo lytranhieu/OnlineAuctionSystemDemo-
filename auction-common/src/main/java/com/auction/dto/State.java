@@ -15,5 +15,16 @@ public final class State {
     public record AuctionData(String id, String name, String description, Category category,
             String seller, long startingPrice, long currentPrice, long startsAt, long endsAt,
             Status status, String highestBidder, List<BidTransaction> history,
-            List<AutoBid> autoBids, long minimumIncrement) { }
+            List<AutoBid> autoBids, long minimumIncrement,
+            String reviewNote, String reviewedBy, long reviewedAt) {
+        /** Constructor retained for legacy test fixtures and saved models. */
+        public AuctionData(String id, String name, String description, Category category,
+                String seller, long startingPrice, long currentPrice, long startsAt, long endsAt,
+                Status status, String highestBidder, List<BidTransaction> history,
+                List<AutoBid> autoBids, long minimumIncrement) {
+            this(id, name, description, category, seller, startingPrice, currentPrice,
+                    startsAt, endsAt, status, highestBidder, history, autoBids,
+                    minimumIncrement, null, null, 0L);
+        }
+    }
 }

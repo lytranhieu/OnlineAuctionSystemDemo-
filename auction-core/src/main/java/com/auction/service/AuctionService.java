@@ -126,6 +126,27 @@ public final class AuctionService {
         return auctions.values().stream().map(Auction::view).toList();
     }
 
+    /** Show pending and rejected submissions only to their owner and the admin. */
+    public synchronized List<AuctionView> list(User actor) {
+        requireActive(actor);
+        advanceAll();
+        return auctions.values().stream().filter(a -> canSee(actor, a)).map(Auction::view).toList();
+    }
+
+    public synchronized AuctionView get(User actor, String id) {
+        requireActive(actor);
+        advanceAll();
+        Auction auction = required(id);
+        if (!canSee(actor, auction)) throw new SecurityException("Auction not available");
+        return auction.view();
+    }
+
+    private static boolean canSee(User actor, Auction auction) {
+        Status status = auction.getStatus();
+        return (status != Status.PENDING && status != Status.REJECTED)
+                || actor.getRole() == Role.ADMIN || actor.getUsername().equals(auction.getSeller());
+    }
+
     public synchronized AuctionView get(String id) {
         advanceAll();
         return required(id).view();
@@ -164,11 +185,12 @@ public final class AuctionService {
         Auction auction = required(id);
         ensureOwner(actor, auction);
         advanceAll();
-        if (auction.getStatus() != Status.OPEN || !auction.view().history().isEmpty())
-            throw new IllegalStateException("Only upcoming auctions without bids can be deleted");
+        if ((auction.getStatus() != Status.OPEN && auction.getStatus() != Status.PENDING
+                && auction.getStatus() != Status.REJECTED) || !auction.view().history().isEmpty())
+            throw new IllegalStateException("Only upcoming or unapproved auctions without bids can be deleted");
         auctions.remove(id);
         save();
-        // null payload on removal is represented as a removed event by the controller.
+        // ClientHub sends the removal to all connected authorized clients.
     }
 
     public synchronized AuctionView bid(User actor, String id, long amount) {
@@ -215,6 +237,23 @@ public final class AuctionService {
 
     private void applyAutoBids(Auction auction, long now) {
         autoBidEngine.settle(auction, now);
+    }
+
+    /** Approval is a server-side authorization, never controlled by the client UI. */
+    public synchronized AuctionView approve(User actor, String id) {
+        requireRole(actor, Role.ADMIN);
+        Auction auction = required(id);
+        auction.approve(actor.getUsername(), clock.millis());
+        changed(auction);
+        return auction.view();
+    }
+
+    public synchronized AuctionView reject(User actor, String id, String reason) {
+        requireRole(actor, Role.ADMIN);
+        Auction auction = required(id);
+        auction.reject(actor.getUsername(), reason, clock.millis());
+        changed(auction);
+        return auction.view();
     }
 
     public synchronized AuctionView cancel(User actor, String id) {
